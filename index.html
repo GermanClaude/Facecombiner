@@ -1,0 +1,1166 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SELF//RECON — Digitaler Selbst-Check</title>
+<meta name="description" content="Persönliches Selbst-Audit-Werkzeug: Finde heraus, was unter deinem Namen und mit deinem Gesicht über DICH im Netz steht. Läuft komplett lokal im Browser." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#05080a;
+    --bg-2:#0a1014;
+    --panel:#0b1317;
+    --panel-2:#0e1a20;
+    --line:#153a33;
+    --line-soft:#102a26;
+    --fg:#c9ffe8;
+    --muted:#5f8f82;
+    --dim:#3c6459;
+    --neon:#2bff9b;
+    --neon-2:#13f0c7;
+    --cyan:#2ad6ff;
+    --amber:#ffcf3f;
+    --red:#ff5d6c;
+    --mag:#ff57d9;
+    --glow:0 0 8px rgba(43,255,155,.55), 0 0 22px rgba(43,255,155,.18);
+    --radius:10px;
+    --mono:'JetBrains Mono','Share Tech Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(19,240,199,.08), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(42,214,255,.06), transparent 55%),
+      var(--bg);
+    color:var(--fg);
+    font-family:var(--mono);
+    font-size:15px;
+    line-height:1.5;
+    letter-spacing:.2px;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  /* scanline + vignette overlay */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;
+    background:repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,.12) 3px, rgba(0,0,0,0) 4px);
+    mix-blend-mode:overlay;opacity:.5;
+  }
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:9998;
+    box-shadow:inset 0 0 180px rgba(0,0,0,.75);
+  }
+  a{color:var(--neon-2);text-decoration:none}
+  a:hover{text-decoration:underline;text-shadow:var(--glow)}
+  ::selection{background:rgba(43,255,155,.3);color:#031}
+
+  .wrap{max-width:1080px;margin:0 auto;padding:28px 16px 80px}
+
+  /* ---------- header ---------- */
+  header.hero{
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:linear-gradient(180deg,var(--panel-2),var(--panel));
+    padding:22px 20px;
+    position:relative;overflow:hidden;
+    box-shadow:0 0 0 1px rgba(43,255,155,.03), 0 18px 50px -30px rgba(43,255,155,.4);
+  }
+  header.hero::before{
+    content:"";position:absolute;inset:0;opacity:.14;pointer-events:none;
+    background-image:linear-gradient(rgba(43,255,155,.6) 1px,transparent 1px),linear-gradient(90deg,rgba(43,255,155,.6) 1px,transparent 1px);
+    background-size:34px 34px;mask-image:radial-gradient(400px 220px at 70% 0%, #000, transparent 75%);
+  }
+  .brand{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .logo-badge{
+    width:46px;height:46px;border-radius:9px;flex:none;
+    border:1px solid var(--neon);display:grid;place-items:center;
+    background:radial-gradient(circle at 30% 20%, rgba(43,255,155,.25), rgba(43,255,155,.02));
+    box-shadow:var(--glow);
+  }
+  .logo-badge svg{width:26px;height:26px}
+  h1{
+    font-size:clamp(22px,4.4vw,34px);margin:0;font-weight:800;letter-spacing:2px;
+    text-shadow:var(--glow);
+  }
+  h1 .slash{color:var(--cyan)}
+  .tag{color:var(--muted);font-size:12.5px;margin-top:2px;letter-spacing:1px}
+  .status-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;position:relative;z-index:1}
+  .chip{
+    font-size:11px;letter-spacing:1px;text-transform:uppercase;
+    border:1px solid var(--line);border-radius:100px;padding:5px 11px;color:var(--muted);
+    background:rgba(0,0,0,.25);display:inline-flex;align-items:center;gap:6px;
+  }
+  .chip b{color:var(--neon);font-weight:700}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--neon);box-shadow:var(--glow);animation:pulse 1.6s infinite}
+  .dot.cy{background:var(--cyan)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+  .notice{
+    margin-top:16px;border:1px solid var(--line-soft);border-left:3px solid var(--neon);
+    background:rgba(43,255,155,.05);border-radius:8px;padding:12px 14px;font-size:13px;color:#a7e9d1;position:relative;z-index:1
+  }
+  .notice b{color:var(--neon)}
+
+  /* ---------- sections ---------- */
+  section.card{
+    margin-top:20px;border:1px solid var(--line);border-radius:var(--radius);
+    background:linear-gradient(180deg,var(--panel),#070d10);
+    overflow:hidden;
+  }
+  .card-head{
+    display:flex;align-items:center;gap:12px;padding:13px 16px;
+    border-bottom:1px solid var(--line-soft);
+    background:linear-gradient(90deg,rgba(43,255,155,.06),transparent);
+  }
+  .step-no{
+    font-weight:800;color:#041611;background:var(--neon);border-radius:6px;
+    padding:2px 9px;font-size:13px;box-shadow:var(--glow);letter-spacing:1px;
+  }
+  .card-head h2{margin:0;font-size:15px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700}
+  .card-head .hint{margin-left:auto;color:var(--dim);font-size:11.5px;letter-spacing:.5px}
+  .card-body{padding:16px}
+
+  label.field{display:block;margin:0 0 14px}
+  label.field > span{display:block;color:var(--muted);font-size:12px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+  input[type=text],input[type=password],textarea,select{
+    width:100%;background:#050a0c;border:1px solid var(--line);border-radius:7px;
+    color:var(--fg);font-family:var(--mono);font-size:14px;padding:11px 12px;outline:none;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  input:focus,textarea:focus,select:focus{border-color:var(--neon);box-shadow:0 0 0 3px rgba(43,255,155,.12)}
+  textarea{resize:vertical;min-height:84px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:680px){.row{grid-template-columns:1fr}}
+
+  .btn{
+    cursor:pointer;font-family:var(--mono);font-weight:700;letter-spacing:1px;
+    border:1px solid var(--neon);background:rgba(43,255,155,.1);color:var(--neon);
+    padding:10px 16px;border-radius:7px;font-size:13px;text-transform:uppercase;
+    transition:all .15s;display:inline-flex;align-items:center;gap:8px;
+  }
+  .btn:hover{background:rgba(43,255,155,.2);box-shadow:var(--glow)}
+  .btn:active{transform:translateY(1px)}
+  .btn.ghost{border-color:var(--line);color:var(--muted);background:transparent}
+  .btn.ghost:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:none}
+  .btn.cy{border-color:var(--cyan);color:var(--cyan);background:rgba(42,214,255,.08)}
+  .btn.cy:hover{background:rgba(42,214,255,.18)}
+  .btn.sm{padding:7px 11px;font-size:11.5px}
+  .btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+  /* ---------- scanner ---------- */
+  .scan-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
+  @media(max-width:760px){.scan-grid{grid-template-columns:1fr}}
+  .stage{
+    position:relative;border:1px solid var(--line);border-radius:9px;overflow:hidden;
+    background:#040708;min-height:300px;display:grid;place-items:center;
+  }
+  .stage canvas{display:block;max-width:100%;height:auto}
+  .stage .placeholder{color:var(--dim);text-align:center;padding:30px;font-size:13px;line-height:1.7}
+  .stage .placeholder svg{width:54px;height:54px;opacity:.5;margin-bottom:10px}
+  .corner{position:absolute;width:22px;height:22px;border:2px solid var(--neon);pointer-events:none;opacity:.8}
+  .corner.tl{top:8px;left:8px;border-right:0;border-bottom:0}
+  .corner.tr{top:8px;right:8px;border-left:0;border-bottom:0}
+  .corner.bl{bottom:8px;left:8px;border-right:0;border-top:0}
+  .corner.br{bottom:8px;right:8px;border-left:0;border-top:0}
+
+  .term{
+    border:1px solid var(--line);border-radius:9px;background:#03070a;
+    padding:12px;font-size:12px;line-height:1.65;height:100%;min-height:300px;max-height:420px;
+    overflow:auto;color:var(--muted);
+  }
+  .term .ln{white-space:pre-wrap;word-break:break-word}
+  .term .ok{color:var(--neon)}
+  .term .cy{color:var(--cyan)}
+  .term .am{color:var(--amber)}
+  .term .rd{color:var(--red)}
+  .term .mut{color:var(--dim)}
+  .term .prompt::before{content:"λ ";color:var(--neon)}
+  .cursor-blink::after{content:"▋";color:var(--neon);animation:blink 1s steps(2) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  .drop{
+    border:1.5px dashed var(--line);border-radius:9px;padding:16px;text-align:center;color:var(--muted);
+    cursor:pointer;transition:all .15s;font-size:13px;
+  }
+  .drop:hover,.drop.over{border-color:var(--neon);color:var(--neon);background:rgba(43,255,155,.05)}
+
+  /* ---------- search grid ---------- */
+  .grp{margin-bottom:18px}
+  .grp h3{
+    font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--cyan);
+    margin:0 0 10px;display:flex;align-items:center;gap:8px;
+  }
+  .grp h3::before{content:"▸";color:var(--neon)}
+  .links{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:9px}
+  .lk{
+    display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:7px;
+    padding:9px 11px;background:#060c0e;transition:all .15s;font-size:13px;color:var(--fg);
+  }
+  .lk:hover{border-color:var(--neon);box-shadow:var(--glow);text-decoration:none;transform:translateY(-1px)}
+  .lk .ico{width:24px;height:24px;border-radius:5px;flex:none;display:grid;place-items:center;font-weight:800;font-size:11px;background:rgba(43,255,155,.12);color:var(--neon);border:1px solid var(--line)}
+  .lk .ico.cy{background:rgba(42,214,255,.12);color:var(--cyan)}
+  .lk .ico.am{background:rgba(255,207,63,.12);color:var(--amber)}
+  .lk .ico.mg{background:rgba(255,87,217,.12);color:var(--mag)}
+  .lk small{display:block;color:var(--dim);font-size:10.5px;letter-spacing:.3px}
+  .lk.disabled{opacity:.45;pointer-events:none}
+
+  /* ---------- meta / exif ---------- */
+  .kv{display:grid;grid-template-columns:170px 1fr;gap:6px 14px;font-size:13px}
+  @media(max-width:560px){.kv{grid-template-columns:1fr}}
+  .kv dt{color:var(--muted);letter-spacing:.5px}
+  .kv dd{margin:0;color:var(--fg);word-break:break-word}
+  .kv dd.hot{color:var(--amber)}
+  .badge{display:inline-block;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;padding:2px 8px;border-radius:100px;border:1px solid var(--line)}
+  .badge.ok{color:var(--neon);border-color:var(--neon)}
+  .badge.warn{color:var(--amber);border-color:var(--amber)}
+
+  /* ---------- AI ---------- */
+  .ai-out{
+    border:1px solid var(--line);border-radius:9px;background:#03070a;padding:14px;
+    white-space:pre-wrap;word-break:break-word;font-size:13.5px;line-height:1.7;min-height:60px;color:#d7ffef;
+  }
+  .ai-out:empty::before{content:"// Noch keine Analyse. Modell wählen, Key eintragen, ausführen.";color:var(--dim)}
+  .prov-note{font-size:11.5px;color:var(--dim);margin-top:6px;line-height:1.6}
+  .keyrow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+  @media(max-width:560px){.keyrow{grid-template-columns:1fr}}
+
+  details.acc{border:1px solid var(--line-soft);border-radius:8px;margin-top:10px;background:#060c0e}
+  details.acc summary{cursor:pointer;padding:11px 13px;color:var(--cyan);font-size:13px;letter-spacing:.5px;list-style:none}
+  details.acc summary::-webkit-details-marker{display:none}
+  details.acc summary::before{content:"+ ";color:var(--neon);font-weight:800}
+  details.acc[open] summary::before{content:"− "}
+  details.acc .inner{padding:0 13px 13px;color:var(--muted);font-size:13px;line-height:1.7}
+
+  ul.clean{margin:8px 0;padding-left:18px}
+  ul.clean li{margin:5px 0}
+
+  footer{margin-top:30px;color:var(--dim);font-size:12px;text-align:center;line-height:1.8}
+  footer .warn-box{
+    border:1px solid var(--line-soft);border-radius:8px;padding:14px;margin-bottom:14px;
+    color:var(--muted);text-align:left;background:#060c0e;
+  }
+  footer .warn-box b{color:var(--amber)}
+  .glitch{position:relative}
+  .glitch:hover::after{content:attr(data-t);position:absolute;left:2px;top:0;color:var(--mag);opacity:.7;clip-path:inset(0 0 55% 0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= HEADER ================= -->
+  <header class="hero">
+    <div class="brand">
+      <div class="logo-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2bff9b" stroke-width="1.6">
+          <circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/>
+          <path d="M8 11h6M11 8v6" stroke-width="1"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="glitch" data-t="SELF//RECON">SELF<span class="slash">//</span>RECON</h1>
+        <div class="tag">// personal digital footprint auditor · v1.0 · local-only build</div>
+      </div>
+    </div>
+
+    <div class="status-row">
+      <span class="chip"><span class="dot"></span> <b>LOCAL</b>&nbsp;ENGINE</span>
+      <span class="chip"><span class="dot cy"></span> NO&nbsp;UPLOAD</span>
+      <span class="chip">SESSION: <b id="sid">—</b></span>
+      <span class="chip">MODELS: <b id="modelcount">0</b></span>
+    </div>
+
+    <div class="notice">
+      <b>Für deinen eigenen Check.</b> Dieses Werkzeug durchsucht nicht selbst das Netz und legt kein
+      heimliches Profil an. Es bündelt die Suchen, die du ohnehin bei Google, Bing, Yandex &amp; Co. machen würdest,
+      analysiert <b>dein eigenes</b> hochgeladenes Foto und fasst <b>deine eigenen</b> Funde zusammen.
+      Alles läuft im Browser — Bild, Name und API-Keys verlassen dein Gerät nur, wenn du eine Suche oder KI-Analyse selbst startest.
+      Gedacht als <b>Selbst-Audit</b>, um zu sehen, was über <b>dich</b> auffindbar ist.
+    </div>
+  </header>
+
+  <!-- ================= STEP 1: TARGET = YOU ================= -->
+  <section class="card">
+    <div class="card-head">
+      <span class="step-no">01</span>
+      <h2>Ziel-Profil :: DU</h2>
+      <span class="hint">lokal · nichts wird gesendet</span>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <label class="field">
+          <span>Dein Klarname</span>
+          <input type="text" id="name" placeholder="z. B. Max Mustermann" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Ort / Region (optional)</span>
+          <input type="text" id="loc" placeholder="z. B. München" autocomplete="off" />
+        </label>
+      </div>
+      <label class="field">
+        <span>Weitere eigene Merkmale (optional) — Benutzernamen, Arbeitgeber, Uni, Vereine</span>
+        <textarea id="extra" placeholder="z. B. @maxm_90 · TU München · FC Beispielstadt · ehem. Firma GmbH"></textarea>
+      </label>
+      <div class="prov-note">
+        Tipp: Je mehr Varianten du kennst (alte Benutzernamen, Spitznamen, Mädchenname), desto vollständiger dein Selbst-Bild.
+        Diese Angaben bleiben im Browser und werden nur in die Such-Links eingebaut, die du selbst anklickst.
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= STEP 2: FACE SCAN ================= -->
+  <section class="card">
+    <div class="card-head">
+      <span class="step-no">02</span>
+      <h2>Biometrie-Scan :: dein Foto</h2>
+      <span class="hint">läuft offline · Canvas</span>
+    </div>
+    <div class="card-body">
+      <div class="btn-row" style="margin-bottom:14px">
+        <label class="btn sm" for="file">▲ Foto wählen</label>
+        <input type="file" id="file" accept="image/*" hidden />
+        <button class="btn sm cy" id="cam">◉ Webcam</button>
+        <button class="btn sm ghost" id="shot" disabled>⎙ Aufnehmen</button>
+        <button class="btn sm ghost" id="scanBtn" disabled>▶ Scan starten</button>
+        <button class="btn sm ghost" id="clearImg" disabled>✕ Reset</button>
+      </div>
+
+      <div class="drop" id="drop">Bild hierher ziehen &amp; ablegen — oder oben „Foto wählen" / „Webcam"</div>
+
+      <div class="scan-grid" style="margin-top:14px">
+        <div class="stage" id="stage">
+          <span class="corner tl"></span><span class="corner tr"></span>
+          <span class="corner bl"></span><span class="corner br"></span>
+          <div class="placeholder" id="ph">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#3c6459" stroke-width="1.3"><circle cx="12" cy="9" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+            <div>WARTE AUF BILDQUELLE…<br/><span style="color:var(--dim);font-size:11px">Das Gesichts-Mesh ist eine lokale Visualisierung und identifiziert niemanden.</span></div>
+          </div>
+          <canvas id="cv" hidden></canvas>
+          <video id="vid" playsinline hidden style="max-width:100%;height:auto"></video>
+        </div>
+        <div class="term" id="term"><div class="ln mut">// biometric engine idle</div><div class="ln prompt cursor-blink"></div></div>
+      </div>
+      <div class="prov-note" style="margin-top:12px">
+        Das animierte Netz dient nur der Visualisierung („Show-Effekt"). Es findet keine Identität. Für eine echte
+        Bild-Rückwärtssuche nutze die Buttons in Schritt&nbsp;3 — dort öffnest du dein Foto bei etablierten Suchmaschinen.
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= STEP 3: SEARCH LAUNCHER ================= -->
+  <section class="card">
+    <div class="card-head">
+      <span class="step-no">03</span>
+      <h2>Recon-Launcher :: öffentliche Suchen</h2>
+      <span class="hint">öffnet externe Seiten</span>
+    </div>
+    <div class="card-body">
+      <div class="prov-note" style="margin-bottom:14px">
+        Diese Buttons bauen aus deinem Namen fertige Such-Anfragen und öffnen sie in einem neuen Tab.
+        Für die <b>Bild-Rückwärtssuche</b> öffnest du die Suchmaschine und ziehst dort dein Foto hinein
+        (ein Browser kann ein lokales Bild aus Sicherheitsgründen nicht automatisch in eine fremde Suche laden).
+      </div>
+
+      <div class="grp">
+        <h3>Namenssuche — Suchmaschinen</h3>
+        <div class="links" id="g-name"></div>
+      </div>
+      <div class="grp">
+        <h3>Bild-Rückwärtssuche — lade dort dein Foto hinein</h3>
+        <div class="links" id="g-img"></div>
+      </div>
+      <div class="grp">
+        <h3>Soziale Netzwerke &amp; Verzeichnisse</h3>
+        <div class="links" id="g-social"></div>
+      </div>
+      <div class="grp">
+        <h3>People-Search &amp; Daten-Broker (prüfen, ob du gelistet bist)</h3>
+        <div class="links" id="g-people"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= STEP 4: EXIF ================= -->
+  <section class="card">
+    <div class="card-head">
+      <span class="step-no">04</span>
+      <h2>Metadaten-Forensik :: EXIF</h2>
+      <span class="hint">liest dein Foto lokal</span>
+    </div>
+    <div class="card-body">
+      <div class="prov-note" style="margin-bottom:12px">
+        Viele Fotos tragen versteckte Daten: <b>GPS-Standort</b>, Kameramodell, Datum/Uhrzeit. Genau das verrät oft am meisten.
+        Lade in Schritt&nbsp;2 ein Foto, dann liest der Scanner die Metadaten hier aus.
+      </div>
+      <dl class="kv" id="exif"><dt>Status</dt><dd class="mut" style="color:var(--dim)">— kein Bild geladen —</dd></dl>
+      <div class="btn-row" style="margin-top:14px">
+        <button class="btn sm ghost" id="stripBtn" disabled>⌫ Metadaten entfernen &amp; sauberes Bild speichern</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= STEP 5: AI ================= -->
+  <section class="card">
+    <div class="card-head">
+      <span class="step-no">05</span>
+      <h2>KI-Analyse :: Modell wählen</h2>
+      <span class="hint" id="visionHint">Vision + Text</span>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <label class="field">
+          <span>Anbieter</span>
+          <select id="prov"></select>
+        </label>
+        <label class="field">
+          <span>Modell</span>
+          <input type="text" id="model" list="modellist" placeholder="Modell wählen/eintippen" autocomplete="off"/>
+          <datalist id="modellist"></datalist>
+        </label>
+      </div>
+
+      <div id="keyWrap">
+        <label class="field">
+          <span id="keyLabel">API-Key</span>
+          <div class="keyrow">
+            <input type="password" id="key" placeholder="wird nur lokal gespeichert (localStorage)" autocomplete="off"/>
+            <button class="btn sm ghost" id="getKey" type="button">↗ Key holen</button>
+          </div>
+        </label>
+      </div>
+      <div id="cfWrap" style="display:none">
+        <label class="field">
+          <span>Cloudflare Account-ID</span>
+          <input type="text" id="cfacct" placeholder="Account-ID aus dem Cloudflare-Dashboard" autocomplete="off"/>
+        </label>
+      </div>
+      <div id="baseWrap" style="display:none">
+        <label class="field">
+          <span>Endpoint-URL (OpenAI-kompatibel)</span>
+          <input type="text" id="base" placeholder="https://host/v1" autocomplete="off"/>
+        </label>
+      </div>
+
+      <div class="prov-note" id="provNote"></div>
+
+      <div class="grp" style="margin-top:16px">
+        <h3>A) Dein Foto analysieren — welche Spuren verraten dich?</h3>
+        <div class="btn-row">
+          <button class="btn" id="analyzeImg" disabled>▶ Foto-Analyse starten</button>
+          <span class="prov-note" style="margin:0">Benötigt ein Vision-Modell + geladenes Foto.</span>
+        </div>
+        <div class="ai-out" id="outImg" style="margin-top:12px"></div>
+      </div>
+
+      <div class="grp">
+        <h3>B) Deine Funde zusammenfassen — Selbst-Steckbrief</h3>
+        <label class="field">
+          <span>Füge hier ein, was du über dich gefunden hast (Textausschnitte, Links, Treffer)</span>
+          <textarea id="findings" placeholder="Einfach die Fundstücke aus deinen Suchen hier einfügen — die KI baut daraus einen strukturierten Überblick: Was ist öffentlich auffindbar? Wo? Wie kritisch?"></textarea>
+        </label>
+        <div class="btn-row">
+          <button class="btn cy" id="summarize" disabled>▶ Selbst-Steckbrief erstellen</button>
+        </div>
+        <div class="ai-out" id="outSum" style="margin-top:12px"></div>
+      </div>
+
+      <details class="acc">
+        <summary>Hinweise zu Anbietern, CORS &amp; lokalen Modellen (Ollama)</summary>
+        <div class="inner">
+          <ul class="clean">
+            <li><b>Kostenlos:</b> Google Gemini (Free Tier), Groq, OpenRouter (viele <code>:free</code>-Modelle), Mistral, Cloudflare Workers AI, Together (Free-Modelle).</li>
+            <li><b>Mit eigenem Key (kostenpflichtig):</b> OpenAI, Anthropic Claude, DeepSeek, xAI Grok.</li>
+            <li><b>Lokal / eigene KI:</b> <b>Ollama</b> (<code>http://localhost:11434</code>) und LM Studio laufen auf deinem Rechner. Für Ollama im Browser muss CORS erlaubt sein — starte Ollama mit <code>OLLAMA_ORIGINS=*</code> (bzw. setze die Umgebungsvariable), sonst blockt der Browser die Anfrage.</li>
+            <li><b>CORS:</b> Manche Anbieter erlauben keine direkten Browser-Anfragen. Klappt ein Anbieter nicht, probiere Gemini, Groq, OpenRouter oder Anthropic — die funktionieren meist direkt aus dem Browser. Keys bleiben in jedem Fall lokal.</li>
+            <li><b>Datenschutz:</b> Bei Cloud-Anbietern wird dein Foto/Text zur Analyse an deren Server geschickt. Für maximale Privatsphäre nimm Ollama/LM Studio (läuft nur lokal).</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ================= STEP 6: PROTECT ================= -->
+  <section class="card">
+    <div class="card-head">
+      <span class="step-no">06</span>
+      <h2>Gegenmaßnahmen :: dich schützen</h2>
+      <span class="hint">wenn du etwas findest</span>
+    </div>
+    <div class="card-body">
+      <div class="grp">
+        <h3>Löschung &amp; Opt-out</h3>
+        <div class="links" id="g-protect"></div>
+      </div>
+      <details class="acc" open>
+        <summary>DSGVO-Auskunft &amp; Löschung (Art. 15 / Art. 17) — Kurzanleitung</summary>
+        <div class="inner">
+          <ul class="clean">
+            <li><b>Auskunft (Art. 15):</b> Du darfst von jeder Seite/Firma wissen, welche Daten sie über dich hat. Formlose E-Mail an den Datenschutz-Kontakt genügt.</li>
+            <li><b>Löschung (Art. 17):</b> „Recht auf Vergessenwerden" — verlange die Löschung deiner Daten. Fristen beachten (i. d. R. 1 Monat).</li>
+            <li><b>Google-Entfernung:</b> Über das Formular „Inhalte aus der Google-Suche entfernen" kannst du bestimmte Treffer mit persönlichen Daten melden.</li>
+            <li><b>Bildersuchen:</b> Gesichts-Suchmaschinen bieten meist ein Opt-out/Removal-Formular an — oben verlinkt.</li>
+            <li>Dokumentiere alles (Screenshots, Datum), falls du nachfassen musst.</li>
+          </ul>
+        </div>
+      </details>
+      <details class="acc">
+        <summary>Prävention — weniger Angriffsfläche</summary>
+        <div class="inner">
+          <ul class="clean">
+            <li>Profile auf privat, alte/ungenutzte Accounts löschen.</li>
+            <li>Vor dem Posten: Metadaten entfernen (Schritt 4), Hintergründe/Schilder prüfen.</li>
+            <li>Für Anmeldungen, die keinen Klarnamen brauchen, ein Pseudonym nutzen.</li>
+            <li>Regelmäßig (z. B. alle paar Monate) diesen Selbst-Check wiederholen.</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <footer>
+    <div class="warn-box">
+      <b>⚠ Nutzung nur für dich selbst.</b> Dieses Werkzeug ist als persönliches Selbst-Audit gedacht —
+      um deinen eigenen digitalen Fußabdruck zu prüfen. Das Ausforschen anderer Personen ohne deren Einwilligung
+      kann Persönlichkeits- und Datenschutzrechte verletzen (u. a. DSGVO, KUG). Verantwortung liegt bei dir.
+    </div>
+    SELF//RECON — alles läuft lokal im Browser · keine Server · kein Tracking · deine Keys bleiben auf deinem Gerät.
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- tiny helpers ---------- */
+  const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+  const el=(t,c,txt)=>{const e=document.createElement(t);if(c)e.className=c;if(txt!=null)e.textContent=txt;return e;};
+  const enc=s=>encodeURIComponent((s||"").trim());
+  function lsGet(k,d){try{const v=localStorage.getItem(k);return v==null?d:v;}catch(e){return d;}}
+  function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+
+  // session id (no Date.now/random reliance for determinism not needed here, but guard)
+  (function(){
+    let s="";try{s=(crypto.getRandomValues(new Uint32Array(1))[0]>>>0).toString(16).toUpperCase().padStart(8,"0");}catch(e){s="LOCAL0001";}
+    $("#sid").textContent="0x"+s;
+  })();
+
+  /* ---------- terminal ---------- */
+  const term=$("#term");
+  function log(msg,cls){
+    const blink=term.querySelector(".cursor-blink");
+    const line=el("div","ln "+(cls||""));
+    line.textContent=msg;
+    term.insertBefore(line,blink);
+    term.scrollTop=term.scrollHeight;
+  }
+  function logp(msg,cls){
+    const blink=term.querySelector(".cursor-blink");
+    const line=el("div","ln prompt "+(cls||""));
+    line.textContent=msg;
+    term.insertBefore(line,blink);
+    term.scrollTop=term.scrollHeight;
+  }
+
+  /* ============================================================
+     IMAGE SOURCE  (file / drag / webcam)
+     ============================================================ */
+  const stage=$("#stage"), ph=$("#ph"), cv=$("#cv"), ctx=cv.getContext("2d"),
+        vid=$("#vid"), fileInput=$("#file");
+  let imgDataURL=null, imgEl=null, rawFile=null, stream=null, anim=null;
+
+  function showCanvas(){ ph.hidden=true; vid.hidden=true; cv.hidden=false; }
+  function setButtons(){
+    const has=!!imgDataURL;
+    $("#scanBtn").disabled=!has;
+    $("#clearImg").disabled=!has && !stream;
+    $("#stripBtn").disabled=!rawFile;
+    refreshAIButtons();
+  }
+
+  function loadFromDataURL(url, file){
+    stopCam();
+    const img=new Image();
+    img.onload=function(){
+      imgEl=img; imgDataURL=url; rawFile=file||null;
+      const maxW=720, scale=Math.min(1, maxW/img.width);
+      cv.width=Math.round(img.width*scale); cv.height=Math.round(img.height*scale);
+      ctx.drawImage(img,0,0,cv.width,cv.height);
+      showCanvas();
+      log("bildquelle geladen :: "+cv.width+"×"+cv.height+" px","ok");
+      setButtons();
+      parseExif(file);
+      startScan(); // auto show effect
+    };
+    img.onerror=function(){ log("fehler: bild konnte nicht gelesen werden","rd"); };
+    img.src=url;
+  }
+
+  fileInput.addEventListener("change",e=>{
+    const f=e.target.files&&e.target.files[0]; if(!f)return;
+    const r=new FileReader();
+    r.onload=()=>loadFromDataURL(r.result,f);
+    r.readAsDataURL(f);
+  });
+
+  // drag & drop
+  const drop=$("#drop");
+  ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+  ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+  drop.addEventListener("drop",e=>{
+    const f=e.dataTransfer.files&&e.dataTransfer.files[0]; if(!f||!/^image\//.test(f.type))return;
+    const r=new FileReader(); r.onload=()=>loadFromDataURL(r.result,f); r.readAsDataURL(f);
+  });
+  drop.addEventListener("click",()=>fileInput.click());
+
+  // webcam
+  $("#cam").addEventListener("click",async()=>{
+    try{
+      stopScan();
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
+      vid.srcObject=stream; await vid.play();
+      ph.hidden=true; cv.hidden=true; vid.hidden=false;
+      $("#shot").disabled=false; $("#clearImg").disabled=false;
+      log("webcam aktiv :: bereit zur aufnahme","cy");
+    }catch(err){ log("webcam-zugriff verweigert: "+err.message,"rd"); }
+  });
+  $("#shot").addEventListener("click",()=>{
+    if(!stream)return;
+    const maxW=720, scale=Math.min(1, maxW/vid.videoWidth||1);
+    cv.width=Math.round(vid.videoWidth*scale); cv.height=Math.round(vid.videoHeight*scale);
+    ctx.drawImage(vid,0,0,cv.width,cv.height);
+    imgDataURL=cv.toDataURL("image/jpeg",0.92); imgEl=null; rawFile=null;
+    showCanvas(); stopCam();
+    log("standbild aufgenommen","ok");
+    $("#exif").innerHTML='<dt>EXIF</dt><dd class="mut" style="color:var(--dim)">Webcam-Aufnahme enthält keine EXIF-Metadaten.</dd>';
+    setButtons(); startScan();
+  });
+  function stopCam(){ if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;} vid.hidden=true; $("#shot").disabled=true; }
+  $("#clearImg").addEventListener("click",()=>{
+    stopScan(); stopCam();
+    imgDataURL=null;imgEl=null;rawFile=null;
+    cv.hidden=true; ph.hidden=false;
+    $("#exif").innerHTML='<dt>Status</dt><dd class="mut" style="color:var(--dim)">— kein Bild geladen —</dd>';
+    log("bildquelle zurückgesetzt","mut"); setButtons();
+  });
+
+  /* ============================================================
+     FACE-MESH SCAN ANIMATION  (stylized, local, identifies nothing)
+     ============================================================ */
+  let nodes=[], t0=0, scanLogTimer=0;
+  const scanMsgs=[
+    ["init biometric lattice…","mut"],["mapping facial landmarks [68]…","cy"],
+    ["computing geometry vectors…","mut"],["edge detection :: contrast map…","cy"],
+    ["normalizing pose + illumination…","mut"],["extracting descriptor hash…","ok"],
+    ["cross-check: LOCAL ONLY — no network query","am"],
+    ["visualization complete :: no identity resolved","ok"]
+  ];
+  function buildNodes(){
+    nodes=[];
+    const cols=12, rows=14;
+    const cx=cv.width*0.5, cy=cv.height*0.47, rx=cv.width*0.34, ry=cv.height*0.42;
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const u=c/(cols-1), v=r/(rows-1);
+        // place in an oval-ish face region
+        const ang=(u-0.5)*Math.PI;
+        const x=cx+Math.sin(ang)*rx*(0.6+0.4*(1-Math.abs(v-0.5)*2*0.3));
+        const y=cy+(v-0.5)*2*ry;
+        if(Math.pow((x-cx)/rx,2)+Math.pow((y-cy)/ry,2)>1.15) continue;
+        nodes.push({x,y,bx:x,by:y,ph:(r*cols+c)%7,r,c});
+      }
+    }
+  }
+  function startScan(){
+    if(!imgDataURL)return;
+    stopScan();
+    buildNodes(); t0=0; scanLogTimer=0;
+    log("► scan sequence engaged","ok");
+    const loop=()=>{
+      t0+=1;
+      ctx.drawImage(imgEl||cv, 0,0,cv.width,cv.height); // if imgEl null (webcam shot) cv already has pixels -> redraw from itself not possible; handle below
+      drawMesh();
+      if(t0%26===0 && scanLogTimer<scanMsgs.length){ const m=scanMsgs[scanLogTimer++]; logp(m[0],m[1]); }
+      anim=requestAnimationFrame(loop);
+    };
+    // if we have no imgEl (webcam) keep a snapshot to redraw over
+    if(!imgEl){ snapshot=document.createElement("canvas"); snapshot.width=cv.width;snapshot.height=cv.height; snapshot.getContext("2d").drawImage(cv,0,0); }
+    anim=requestAnimationFrame(loop);
+  }
+  let snapshot=null;
+  function stopScan(){ if(anim){cancelAnimationFrame(anim);anim=null;} }
+  $("#scanBtn").addEventListener("click",startScan);
+
+  function drawMesh(){
+    if(!imgEl && snapshot){ ctx.drawImage(snapshot,0,0); }
+    const W=cv.width,H=cv.height, tt=t0*0.045;
+    // connective lines
+    ctx.lineWidth=0.7;
+    for(let i=0;i<nodes.length;i++){
+      const a=nodes[i];
+      a.x=a.bx+Math.sin(tt+a.ph)*1.4; a.y=a.by+Math.cos(tt+a.ph*1.3)*1.4;
+    }
+    ctx.strokeStyle="rgba(43,255,155,0.28)";
+    for(let i=0;i<nodes.length;i++){
+      const a=nodes[i];
+      for(let j=i+1;j<nodes.length;j++){
+        const b=nodes[j];
+        if(Math.abs(a.r-b.r)<=1 && Math.abs(a.c-b.c)<=1){
+          const d=Math.hypot(a.x-b.x,a.y-b.y);
+          if(d<W*0.14){ ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke(); }
+        }
+      }
+    }
+    // nodes
+    for(const n of nodes){
+      const pulse=0.5+0.5*Math.sin(tt*2+n.ph);
+      ctx.fillStyle="rgba(19,240,199,"+(0.4+0.6*pulse)+")";
+      ctx.beginPath();ctx.arc(n.x,n.y,1.3+pulse*1.1,0,7);ctx.fill();
+    }
+    // sweeping scan line
+    const sy=(Math.sin(tt*0.9)*0.5+0.5)*H;
+    const grad=ctx.createLinearGradient(0,sy-16,0,sy+16);
+    grad.addColorStop(0,"rgba(43,255,155,0)");grad.addColorStop(.5,"rgba(43,255,155,.5)");grad.addColorStop(1,"rgba(43,255,155,0)");
+    ctx.fillStyle=grad;ctx.fillRect(0,sy-16,W,32);
+    ctx.strokeStyle="rgba(43,255,155,.9)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,sy);ctx.lineTo(W,sy);ctx.stroke();
+    // HUD text
+    ctx.font="11px monospace";ctx.fillStyle="rgba(42,214,255,.85)";
+    ctx.fillText("LANDMARKS "+nodes.length, 10, 18);
+    ctx.fillText("SCAN "+(Math.min(99,Math.floor(t0/3))%100)+"%", 10, H-10);
+    ctx.fillStyle="rgba(255,207,63,.8)";
+    ctx.fillText("LOCAL • NO UPLOAD", W-130, 18);
+  }
+
+  /* ============================================================
+     EXIF PARSER  (JPEG APP1 — GPS, Make, Model, DateTime)
+     ============================================================ */
+  function parseExif(file){
+    const exif=$("#exif");
+    if(!file){ return; }
+    if(!/jpe?g$/i.test(file.type) && !/jpe?g$/i.test(file.name||"")){
+      exif.innerHTML='<dt>EXIF</dt><dd><span class="badge ok">sauber</span> &nbsp;Kein JPEG → in der Regel keine EXIF-Metadaten (z. B. PNG/WebP).</dd>';
+      return;
+    }
+    const r=new FileReader();
+    r.onload=function(){
+      try{ renderExif(readExif(r.result)); }
+      catch(e){ exif.innerHTML='<dt>EXIF</dt><dd class="mut">Konnte Metadaten nicht lesen ('+e.message+').</dd>'; }
+    };
+    r.readAsArrayBuffer(file);
+  }
+
+  function readExif(buf){
+    const dv=new DataView(buf);
+    if(dv.getUint16(0)!==0xFFD8) throw new Error("kein JPEG");
+    let off=2, app1=-1, len=0;
+    while(off<dv.byteLength){
+      if(dv.getUint16(off)===0xFFE1){ app1=off+4; len=dv.getUint16(off+2); break; }
+      if((dv.getUint16(off)&0xFF00)!==0xFF00) break;
+      off+=2+dv.getUint16(off+2);
+    }
+    if(app1<0) return {none:true};
+    // "Exif\0\0"
+    if(dv.getUint32(app1)!==0x45786966) return {none:true};
+    const tiff=app1+6;
+    const little=dv.getUint16(tiff)===0x4949;
+    const u16=(o)=>dv.getUint16(o,little), u32=(o)=>dv.getUint32(o,little);
+    const ifd0=tiff+u32(tiff+4);
+    const out={};
+    function str(o,c){let s="";for(let i=0;i<c;i++){const ch=dv.getUint8(o+i);if(ch===0)break;s+=String.fromCharCode(ch);}return s.trim();}
+    function val(entryOff){
+      const type=u16(entryOff+2), cnt=u32(entryOff+4);
+      const sizes={1:1,2:1,3:2,4:4,5:8,7:1,9:4,10:8};
+      const sz=(sizes[type]||1)*cnt;
+      let vo=entryOff+8; if(sz>4) vo=tiff+u32(entryOff+8);
+      return {type,cnt,vo,sz};
+    }
+    function rat(o){const n=u32(o),d=u32(o+4);return d?n/d:0;}
+    function readIFD(start,handler){
+      const n=u16(start);
+      for(let i=0;i<n;i++){ const e=start+2+i*12; handler(u16(e), e); }
+      return start+2+n*12;
+    }
+    let gpsOff=-1, exifOff=-1;
+    readIFD(ifd0,(tag,e)=>{
+      const v=val(e);
+      if(tag===0x010F) out.make=str(v.vo,v.cnt);
+      else if(tag===0x0110) out.model=str(v.vo,v.cnt);
+      else if(tag===0x0132) out.datetime=str(v.vo,v.cnt);
+      else if(tag===0x0112) out.orient=u16(v.vo);
+      else if(tag===0x8825) gpsOff=tiff+u32(e+8);
+      else if(tag===0x8769) exifOff=tiff+u32(e+8);
+    });
+    if(exifOff>0){
+      readIFD(exifOff,(tag,e)=>{
+        const v=val(e);
+        if(tag===0x9003) out.taken=str(v.vo,v.cnt);
+        else if(tag===0xA002) out.pxw=(v.type===3?u16(v.vo):u32(v.vo));
+        else if(tag===0xA003) out.pxh=(v.type===3?u16(v.vo):u32(v.vo));
+      });
+    }
+    if(gpsOff>0){
+      const g={};
+      readIFD(gpsOff,(tag,e)=>{
+        const v=val(e);
+        if(tag===1) g.latRef=str(v.vo,v.cnt);
+        else if(tag===2) g.lat=[rat(v.vo),rat(v.vo+8),rat(v.vo+16)];
+        else if(tag===3) g.lonRef=str(v.vo,v.cnt);
+        else if(tag===4) g.lon=[rat(v.vo),rat(v.vo+8),rat(v.vo+16)];
+      });
+      if(g.lat&&g.lon){
+        let la=g.lat[0]+g.lat[1]/60+g.lat[2]/3600;
+        let lo=g.lon[0]+g.lon[1]/60+g.lon[2]/3600;
+        if(g.latRef==="S")la=-la; if(g.lonRef==="W")lo=-lo;
+        out.gps={lat:la,lon:lo};
+      }
+    }
+    return out;
+  }
+
+  function renderExif(d){
+    const exif=$("#exif");
+    if(!d || d.none){
+      exif.innerHTML='<dt>EXIF</dt><dd><span class="badge ok">sauber</span> &nbsp;Keine EXIF-Metadaten gefunden (oft schon von Plattformen entfernt).</dd>';
+      return;
+    }
+    const rows=[];
+    const add=(k,v,hot)=>rows.push("<dt>"+k+"</dt><dd class='"+(hot?"hot":"")+"'>"+v+"</dd>");
+    if(d.gps){
+      const la=d.gps.lat.toFixed(6), lo=d.gps.lon.toFixed(6);
+      add("⚠ GPS-Standort","<b>"+la+", "+lo+"</b> &nbsp; <a href='https://www.openstreetmap.org/?mlat="+la+"&mlon="+lo+"#map=16/"+la+"/"+lo+"' target='_blank' rel='noopener'>OpenStreetMap ↗</a> · <a href='https://www.google.com/maps?q="+la+","+lo+"' target='_blank' rel='noopener'>Google Maps ↗</a>",true);
+    } else {
+      add("GPS-Standort","<span class='badge ok'>keiner</span> kein Standort eingebettet");
+    }
+    if(d.make||d.model) add("Kamera / Gerät",[d.make,d.model].filter(Boolean).join(" "),true);
+    if(d.taken) add("Aufnahme-Zeit",d.taken,true);
+    else if(d.datetime) add("Datei-Zeit",d.datetime,true);
+    if(d.pxw&&d.pxh) add("Original-Auflösung",d.pxw+"×"+d.pxh+" px");
+    if(d.orient) add("Orientierung","#"+d.orient);
+    if(!rows.length){ exif.innerHTML='<dt>EXIF</dt><dd><span class="badge ok">sauber</span> Keine kritischen Felder.</dd>'; return; }
+    const hdr= d.gps ? '<dt>Befund</dt><dd class="hot"><span class="badge warn">Achtung</span> Dieses Bild verrät Daten über dich.</dd>' :
+                       '<dt>Befund</dt><dd><span class="badge ok">ok</span> Einige Geräteinfos, aber kein Standort.</dd>';
+    exif.innerHTML=hdr+rows.join("");
+  }
+
+  // strip metadata -> re-encode via canvas and download
+  $("#stripBtn").addEventListener("click",()=>{
+    if(!imgEl&&!imgDataURL)return;
+    const tmp=document.createElement("canvas");
+    const src=imgEl||cv; tmp.width=(imgEl?imgEl.width:cv.width); tmp.height=(imgEl?imgEl.height:cv.height);
+    tmp.getContext("2d").drawImage(src,0,0,tmp.width,tmp.height);
+    tmp.toBlob(b=>{
+      const url=URL.createObjectURL(b);
+      const a=el("a"); a.href=url; a.download="clean_no-metadata.jpg"; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      log("metadaten entfernt :: sauberes bild gespeichert","ok");
+    },"image/jpeg",0.95);
+  });
+
+  /* ============================================================
+     SEARCH LAUNCHER
+     ============================================================ */
+  function q(){ return $("#name").value.trim(); }
+  function qLoc(){ return $("#loc").value.trim(); }
+  function mk(parent, items){
+    const box=$(parent); box.innerHTML="";
+    items.forEach(it=>{
+      const a=el("a","lk"+(it.note==="img"?"":""));
+      a.target="_blank"; a.rel="noopener noreferrer";
+      a.href=it.url();
+      const ico=el("span","ico "+(it.cls||"")); ico.textContent=it.ico; a.appendChild(ico);
+      const span=el("span"); span.innerHTML="<div>"+it.name+"</div>"+(it.sub?"<small>"+it.sub+"</small>":"");
+      a.appendChild(span);
+      a.addEventListener("click",()=>log("launch :: "+it.name,"cy"));
+      box.appendChild(a);
+    });
+  }
+  function buildSearch(){
+    const name=q(), loc=qLoc();
+    const nq=enc('"'+name+'"'), nqLoc=enc('"'+name+'" '+loc);
+    const hasName=!!name;
+    const dis=u=>hasName?u:"javascript:void(0)";
+
+    mk("#g-name",[
+      {ico:"G",name:"Google",sub:"exakter Name",cls:"",url:()=>dis("https://www.google.com/search?q="+nq)},
+      {ico:"G+",name:"Google + Ort",sub:"Name & Region",cls:"cy",url:()=>dis("https://www.google.com/search?q="+nqLoc)},
+      {ico:"B",name:"Bing",sub:"",cls:"cy",url:()=>dis("https://www.bing.com/search?q="+nq)},
+      {ico:"D",name:"DuckDuckGo",sub:"ohne Tracking",cls:"am",url:()=>dis("https://duckduckgo.com/?q="+nq)},
+      {ico:"S",name:"Startpage",sub:"anonym",cls:"",url:()=>dis("https://www.startpage.com/sp/search?query="+nq)},
+      {ico:"Y",name:"Yandex",sub:"findet oft mehr",cls:"am",url:()=>dis("https://yandex.com/search/?text="+nq)},
+      {ico:"Br",name:"Brave Search",sub:"",cls:"mg",url:()=>dis("https://search.brave.com/search?q="+nq)},
+      {ico:"📄",name:"Google: Dokumente",sub:"PDF/DOC mit Name",cls:"cy",url:()=>dis("https://www.google.com/search?q="+nq+"+"+enc("filetype:pdf OR filetype:doc OR filetype:xls"))},
+      {ico:"📰",name:"Google News",sub:"Presse-Erwähnungen",cls:"",url:()=>dis("https://news.google.com/search?q="+nq)},
+    ]);
+
+    mk("#g-img",[
+      {ico:"◱",name:"Google Lens",sub:"Foto reinziehen",cls:"",url:()=>"https://lens.google.com/"},
+      {ico:"◱",name:"Google Bilder",sub:"Rückwärtssuche",cls:"cy",url:()=>"https://images.google.com/"},
+      {ico:"◱",name:"Yandex Bilder",sub:"stark bei Gesichtern",cls:"am",url:()=>"https://yandex.com/images/"},
+      {ico:"◱",name:"Bing Visual",sub:"Bildsuche",cls:"cy",url:()=>"https://www.bing.com/visualsearch"},
+      {ico:"◱",name:"TinEye",sub:"wo taucht es auf",cls:"",url:()=>"https://tineye.com/"},
+      {ico:"◱",name:"PimEyes",sub:"Gesichts-Selbstcheck",cls:"mg",url:()=>"https://pimeyes.com/en"},
+    ]);
+
+    mk("#g-social",[
+      {ico:"f",name:"Facebook",sub:"Personensuche",cls:"cy",url:()=>dis("https://www.facebook.com/search/people/?q="+nq)},
+      {ico:"in",name:"LinkedIn",sub:"via Google",cls:"cy",url:()=>dis("https://www.google.com/search?q="+nq+"+site:linkedin.com")},
+      {ico:"X",name:"X / Twitter",sub:"",cls:"",url:()=>dis("https://twitter.com/search?q="+nq)},
+      {ico:"ig",name:"Instagram",sub:"via Google",cls:"mg",url:()=>dis("https://www.google.com/search?q="+nq+"+site:instagram.com")},
+      {ico:"▶",name:"YouTube",sub:"",cls:"am",url:()=>dis("https://www.youtube.com/results?search_query="+nq)},
+      {ico:"◆",name:"TikTok",sub:"via Google",cls:"mg",url:()=>dis("https://www.google.com/search?q="+nq+"+site:tiktok.com")},
+      {ico:"gh",name:"GitHub",sub:"",cls:"",url:()=>dis("https://github.com/search?q="+nq+"&type=users")},
+      {ico:"☎",name:"Das Telefonbuch",sub:"DE",cls:"cy",url:()=>dis("https://www.dastelefonbuch.de/Suche/"+enc(name))},
+      {ico:"☎",name:"Das Örtliche",sub:"DE",cls:"am",url:()=>dis("https://www.dasoertliche.de/?kw="+enc(name))},
+    ]);
+
+    mk("#g-people",[
+      {ico:"P",name:"Pipl (via Google)",sub:"",cls:"",url:()=>dis("https://www.google.com/search?q="+nq+"+site:pipl.com")},
+      {ico:"W",name:"WebMii",sub:"Personen-Aggregator",cls:"cy",url:()=>dis("https://webmii.com/people?n="+enc(name))},
+      {ico:"411",name:"411 / Whitepages",sub:"US",cls:"am",url:()=>dis("https://www.google.com/search?q="+nq+"+site:whitepages.com")},
+      {ico:"Sp",name:"Spokeo (via Google)",sub:"US-Broker",cls:"mg",url:()=>dis("https://www.google.com/search?q="+nq+"+site:spokeo.com")},
+      {ico:"🔎",name:"Namecheckup",sub:"Benutzernamen",cls:"",url:()=>"https://namecheckup.com/"},
+      {ico:"📧",name:"Have I Been Pwned",sub:"Daten-Leaks (E-Mail)",cls:"cy",url:()=>"https://haveibeenpwned.com/"},
+    ]);
+
+    mk("#g-protect",[
+      {ico:"G",name:"Google-Entfernung",sub:"persönl. Daten melden",cls:"",url:()=>"https://support.google.com/websearch/answer/9673730"},
+      {ico:"P",name:"PimEyes Opt-out",sub:"Gesicht entfernen",cls:"mg",url:()=>"https://pimeyes.com/en/opt-out-request-form"},
+      {ico:"Y",name:"Yandex entfernen",sub:"",cls:"am",url:()=>"https://yandex.com/support/images/troubleshooting/removal.html"},
+      {ico:"T",name:"TinEye Kontakt",sub:"",cls:"",url:()=>"https://tineye.com/contact"},
+      {ico:"📧",name:"HIBP prüfen",sub:"Leaks checken",cls:"cy",url:()=>"https://haveibeenpwned.com/"},
+      {ico:"⚖",name:"DSGVO Art. 17",sub:"Recht auf Löschung",cls:"am",url:()=>"https://dsgvo-gesetz.de/art-17-dsgvo/"},
+    ]);
+  }
+  ["#name","#loc"].forEach(s=>$(s).addEventListener("input",buildSearch));
+  buildSearch();
+
+  /* ============================================================
+     AI PROVIDERS
+     ============================================================ */
+  const PROVIDERS={
+    gemini:{label:"★ Google Gemini (Free Tier)",kind:"gemini",vision:true,
+      keyLabel:"Google AI Studio API-Key",keyUrl:"https://aistudio.google.com/apikey",
+      models:["gemini-2.0-flash","gemini-2.0-flash-lite","gemini-1.5-flash","gemini-1.5-flash-8b","gemini-1.5-pro"],
+      note:"Großzügiger Gratis-Rahmen, Vision inklusive, funktioniert direkt aus dem Browser."},
+    groq:{label:"★ Groq (Free, sehr schnell)",kind:"openai",vision:true,base:"https://api.groq.com/openai/v1",
+      keyLabel:"Groq API-Key",keyUrl:"https://console.groq.com/keys",
+      models:["meta-llama/llama-4-scout-17b-16e-instruct","meta-llama/llama-4-maverick-17b-128e-instruct","llama-3.2-90b-vision-preview","llama-3.2-11b-vision-preview","llama-3.3-70b-versatile"],
+      note:"Kostenlos & extrem schnell. Vision-Modelle = die mit 'vision' / 'llama-4' im Namen."},
+    openrouter:{label:"★ OpenRouter (viele Free-Modelle)",kind:"openai",vision:true,base:"https://openrouter.ai/api/v1",
+      keyLabel:"OpenRouter API-Key",keyUrl:"https://openrouter.ai/keys",
+      models:["google/gemini-2.0-flash-exp:free","meta-llama/llama-3.2-11b-vision-instruct:free","qwen/qwen2.5-vl-72b-instruct:free","mistralai/mistral-small-3.1-24b-instruct:free","google/gemma-3-27b-it:free","deepseek/deepseek-chat-v3-0324:free","deepseek/deepseek-r1:free"],
+      note:"Modelle mit ':free' sind gratis. Ein Konto gibt Zugriff auf Dutzende Anbieter über einen Key."},
+    mistral:{label:"★ Mistral (Free Tier)",kind:"openai",vision:true,base:"https://api.mistral.ai/v1",
+      keyLabel:"Mistral API-Key",keyUrl:"https://console.mistral.ai/api-keys",
+      models:["pixtral-12b-2409","pixtral-large-latest","mistral-small-latest","mistral-large-latest"],
+      note:"Gratis-Tier verfügbar. 'pixtral' = Vision."},
+    together:{label:"★ Together AI (Free-Modelle)",kind:"openai",vision:true,base:"https://api.together.xyz/v1",
+      keyLabel:"Together API-Key",keyUrl:"https://api.together.xyz/settings/api-keys",
+      models:["meta-llama/Llama-Vision-Free","meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"],
+      note:"Modelle mit '-Free' kosten nichts."},
+    cloudflare:{label:"★ Cloudflare Workers AI (Free)",kind:"cloudflare",vision:true,
+      keyLabel:"Cloudflare API-Token",keyUrl:"https://dash.cloudflare.com/profile/api-tokens",
+      models:["@cf/meta/llama-3.2-11b-vision-instruct","@cf/meta/llama-3.1-8b-instruct","@cf/llava-hf/llava-1.5-7b-hf"],
+      note:"Gratis-Kontingent pro Tag. Benötigt zusätzlich die Account-ID. CORS kann hier blocken."},
+    deepseek:{label:"DeepSeek (günstig, eigener Key)",kind:"openai",vision:false,base:"https://api.deepseek.com",
+      keyLabel:"DeepSeek API-Key",keyUrl:"https://platform.deepseek.com/api_keys",
+      models:["deepseek-chat","deepseek-reasoner"],
+      note:"Sehr günstig. Nur Text (kein Vision) → ideal für Teil B (Zusammenfassung)."},
+    openai:{label:"OpenAI (eigener Key)",kind:"openai",vision:true,base:"https://api.openai.com/v1",
+      keyLabel:"OpenAI API-Key",keyUrl:"https://platform.openai.com/api-keys",
+      models:["gpt-4o-mini","gpt-4o","gpt-4.1-mini","gpt-4.1","o4-mini"],
+      note:"Kostenpflichtig. gpt-4o / 4.1 können Bilder."},
+    anthropic:{label:"Anthropic Claude (eigener Key)",kind:"anthropic",vision:true,base:"https://api.anthropic.com/v1",
+      keyLabel:"Anthropic API-Key",keyUrl:"https://console.anthropic.com/settings/keys",
+      models:["claude-3-5-haiku-latest","claude-3-5-sonnet-latest","claude-3-7-sonnet-latest"],
+      note:"Kostenpflichtig. Vision inklusive. Funktioniert direkt aus dem Browser."},
+    xai:{label:"xAI Grok (eigener Key)",kind:"openai",vision:true,base:"https://api.x.ai/v1",
+      keyLabel:"xAI API-Key",keyUrl:"https://console.x.ai",
+      models:["grok-2-vision-1212","grok-2-1212"],
+      note:"Kostenpflichtig. 'vision' = Bildanalyse."},
+    ollama:{label:"⌂ Ollama (lokal, eigene KI)",kind:"openai",vision:true,base:"http://localhost:11434/v1",local:true,
+      keyLabel:"(kein Key nötig)",keyUrl:"https://ollama.com/download",
+      models:["llama3.2-vision","llava","minicpm-v","llama3.2","qwen2.5","gemma3"],
+      note:"Läuft komplett auf deinem Rechner — maximale Privatsphäre. Browser-Zugriff braucht OLLAMA_ORIGINS=* beim Start."},
+    lmstudio:{label:"⌂ LM Studio (lokal)",kind:"openai",vision:true,base:"http://localhost:1234/v1",local:true,
+      keyLabel:"(kein Key nötig)",keyUrl:"https://lmstudio.ai",
+      models:["local-model"],
+      note:"Lokaler OpenAI-kompatibler Server. Modellname = das in LM Studio geladene Modell."},
+    custom:{label:"Eigener OpenAI-kompatibler Endpunkt",kind:"openai",vision:true,base:"",custom:true,
+      keyLabel:"API-Key (falls nötig)",keyUrl:"",
+      models:[],
+      note:"Für selbstgehostete Gateways (vLLM, LiteLLM, Jan, …). Endpoint-URL unten eintragen."},
+  };
+
+  // count models for header
+  (function(){let c=0;for(const k in PROVIDERS)c+=PROVIDERS[k].models.length;$("#modelcount").textContent=c+"+";})();
+
+  const provSel=$("#prov"), modelInput=$("#model"), modelList=$("#modellist"),
+        keyInput=$("#key"), keyLabel=$("#keyLabel"), provNote=$("#provNote");
+  Object.keys(PROVIDERS).forEach(k=>{ const o=el("option"); o.value=k; o.textContent=PROVIDERS[k].label; provSel.appendChild(o); });
+
+  function curProv(){ return PROVIDERS[provSel.value]; }
+  function applyProvider(){
+    const p=curProv();
+    modelList.innerHTML=""; p.models.forEach(m=>{const o=el("option");o.value=m;modelList.appendChild(o);});
+    const savedModel=lsGet("sr_model_"+provSel.value,"");
+    modelInput.value=savedModel|| (p.models[0]||"");
+    keyLabel.textContent=p.keyLabel;
+    keyInput.value=lsGet("sr_key_"+provSel.value,"");
+    keyInput.placeholder=p.local?"lokal — meist kein Key nötig":"wird nur lokal gespeichert (localStorage)";
+    $("#cfWrap").style.display=p.kind==="cloudflare"?"block":"none";
+    $("#baseWrap").style.display=p.custom?"block":"none";
+    $("#cfacct").value=lsGet("sr_cfacct","");
+    $("#base").value=lsGet("sr_base_"+provSel.value, p.base||"");
+    $("#getKey").style.display=p.keyUrl?"inline-flex":"none";
+    provNote.innerHTML=(p.vision?"":"<b>Nur Text</b> — für Teil A (Foto) ein Vision-Modell wählen. ")+p.note+
+      (p.local?"":" <i>Hinweis: Daten gehen zur Analyse an den Anbieter.</i>");
+    $("#visionHint").textContent=p.vision?"Vision + Text":"nur Text";
+    refreshAIButtons();
+  }
+  provSel.addEventListener("change",()=>{ lsSet("sr_prov",provSel.value); applyProvider(); });
+  modelInput.addEventListener("input",()=>lsSet("sr_model_"+provSel.value,modelInput.value));
+  keyInput.addEventListener("input",()=>lsSet("sr_key_"+provSel.value,keyInput.value.trim()));
+  $("#cfacct").addEventListener("input",()=>lsSet("sr_cfacct",$("#cfacct").value.trim()));
+  $("#base").addEventListener("input",()=>lsSet("sr_base_"+provSel.value,$("#base").value.trim()));
+  $("#getKey").addEventListener("click",()=>{const u=curProv().keyUrl;if(u)window.open(u,"_blank","noopener");});
+
+  provSel.value=lsGet("sr_prov","gemini");
+  applyProvider();
+
+  function refreshAIButtons(){
+    const p=curProv();
+    $("#analyzeImg").disabled=!(imgDataURL && p.vision);
+    $("#summarize").disabled=false;
+  }
+
+  /* ---------- request builders ---------- */
+  function dataParts(){
+    const url=imgDataURL||"";
+    const m=/^data:(.*?);base64,(.*)$/.exec(url);
+    return m?{mime:m[1],b64:m[2],url}:null;
+  }
+
+  async function callAI(kind, {system, user, withImage}){
+    const p=curProv();
+    const key=keyInput.value.trim();
+    const base=($("#base").value.trim()||p.base||"").replace(/\/$/,"");
+    const model=modelInput.value.trim();
+    if(!model) throw new Error("Kein Modell angegeben.");
+    const img=withImage?dataParts():null;
+
+    if(p.kind==="gemini"){
+      if(!key) throw new Error("Google AI Studio API-Key fehlt.");
+      const parts=[{text:(system?system+"\n\n":"")+user}];
+      if(img) parts.push({inline_data:{mime_type:img.mime,data:img.b64}});
+      const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(model)+":generateContent?key="+encodeURIComponent(key),{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({contents:[{role:"user",parts}]})});
+      const j=await r.json();
+      if(!r.ok) throw new Error(j.error&&j.error.message||("HTTP "+r.status));
+      return (j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts||[]).map(x=>x.text||"").join("");
+    }
+
+    if(p.kind==="anthropic"){
+      if(!key) throw new Error("Anthropic API-Key fehlt.");
+      const content=[]; if(img) content.push({type:"image",source:{type:"base64",media_type:img.mime,data:img.b64}});
+      content.push({type:"text",text:user});
+      const r=await fetch(base+"/messages",{method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model,max_tokens:1500,system:system||undefined,messages:[{role:"user",content}]})});
+      const j=await r.json();
+      if(!r.ok) throw new Error(j.error&&j.error.message||("HTTP "+r.status));
+      return (j.content||[]).map(x=>x.text||"").join("");
+    }
+
+    if(p.kind==="cloudflare"){
+      const acct=$("#cfacct").value.trim();
+      if(!key) throw new Error("Cloudflare API-Token fehlt.");
+      if(!acct) throw new Error("Cloudflare Account-ID fehlt.");
+      const body={messages:[{role:"system",content:system||"You are a helpful assistant."},{role:"user",content:user}]};
+      if(img){ // cloudflare vision models take a byte array
+        const bin=atob(img.b64); const arr=new Array(bin.length); for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);
+        body.image=arr; body.prompt=user; delete body.messages;
+      }
+      const r=await fetch("https://api.cloudflare.com/client/v4/accounts/"+encodeURIComponent(acct)+"/ai/run/"+model,{
+        method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},body:JSON.stringify(body)});
+      const j=await r.json();
+      if(!r.ok||j.success===false) throw new Error((j.errors&&j.errors[0]&&j.errors[0].message)||("HTTP "+r.status));
+      return (j.result&&(j.result.response||j.result.description))||JSON.stringify(j.result);
+    }
+
+    // default: OpenAI-compatible
+    if(!key && !p.local) throw new Error(p.keyLabel+" fehlt.");
+    const content=[{type:"text",text:user}];
+    if(img) content.push({type:"image_url",image_url:{url:img.url}});
+    const headers={"Content-Type":"application/json"};
+    if(key) headers["Authorization"]="Bearer "+key;
+    if(p===PROVIDERS.openrouter){ headers["HTTP-Referer"]=location.href; headers["X-Title"]="SELF-RECON"; }
+    const r=await fetch(base+"/chat/completions",{method:"POST",headers,
+      body:JSON.stringify({model,max_tokens:1500,messages:[
+        ...(system?[{role:"system",content:system}]:[]),
+        {role:"user",content:img?content:user}]})});
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.error&&(j.error.message||j.error)||("HTTP "+r.status));
+    return j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content||"(leere Antwort)";
+  }
+
+  function busy(btn,on,label){ btn.disabled=on; btn.dataset.o=btn.dataset.o||btn.textContent; btn.textContent=on?("… "+label):btn.dataset.o; }
+
+  /* ---------- A) analyze own photo ---------- */
+  $("#analyzeImg").addEventListener("click",async()=>{
+    if(!imgDataURL){return;}
+    const out=$("#outImg"); out.textContent=""; busy($("#analyzeImg"),true,"analysiere");
+    log("ki-foto-analyse :: "+curProv().label,"cy");
+    const system="Du bist ein Datenschutz- und OSINT-Berater. Der Nutzer prüft sein EIGENES Foto, um zu verstehen, welche Informationen es über ihn preisgibt. Identifiziere KEINE konkrete Person und rate nicht, wer abgebildet ist. Analysiere nur sichtbare, verräterische Hinweise.";
+    const user="Analysiere dieses Foto als Selbst-Datenschutz-Check. Nenne konkret und in Stichpunkten:\n"+
+      "1) Hintergrund-Details, die einen Ort/Region verraten könnten (Schilder, Straßennamen, Architektur, Nummernschilder, Wahrzeichen, Sprache auf Schildern).\n"+
+      "2) Persönliche Hinweise (Kleidung/Logos, Uniform/Arbeitgeber, Vereine, erkennbare Marken, Tattoos, Spiegelungen).\n"+
+      "3) Metadaten-Risiken allgemein.\n"+
+      "4) Was sollte man entfernen/zuschneiden, bevor man es postet?\n"+
+      "Antworte auf Deutsch, klar strukturiert. Keine Identifizierung einer Person.";
+    try{
+      const res=await callAI("vision",{system,user,withImage:true});
+      out.textContent=res||"(keine Antwort)"; log("analyse abgeschlossen","ok");
+    }catch(e){
+      out.innerHTML='<span style="color:var(--red)">Fehler: '+e.message+'</span>\n\nTipp: CORS/Key prüfen oder anderen Anbieter (Gemini/Groq/OpenRouter/Anthropic) wählen.';
+      log("fehler: "+e.message,"rd");
+    }finally{ busy($("#analyzeImg"),false); refreshAIButtons(); }
+  });
+
+  /* ---------- B) summarize findings ---------- */
+  $("#summarize").addEventListener("click",async()=>{
+    const txt=$("#findings").value.trim();
+    const out=$("#outSum");
+    if(!txt){ out.innerHTML='<span style="color:var(--amber)">Bitte oben deine Funde einfügen.</span>'; return; }
+    out.textContent=""; busy($("#summarize"),true,"fasse zusammen");
+    log("ki-zusammenfassung :: selbst-steckbrief","cy");
+    const name=q();
+    const system="Du bist ein OSINT-Analyst, der einer Person hilft, ihren EIGENEN digitalen Fußabdruck zu verstehen. Nutze AUSSCHLIESSLICH die vom Nutzer eingefügten Textschnipsel. Erfinde nichts dazu, spekuliere nicht über Wohnadresse o. Ä. Markiere Unsicheres als unsicher.";
+    const user="Fasse die folgenden Fundstücke über "+(name?('die Person "'+name+'"'):"mich")+" zu einem strukturierten Selbst-Überblick zusammen.\n\n"+
+      "Struktur:\n• ÖFFENTLICH AUFFINDBAR (Was steht wo? pro Punkt die Quelle/Plattform)\n"+
+      "• KATEGORIEN (Beruf, Social Media, Presse, Vereine, Sonstiges)\n"+
+      "• SENSIBILITÄT (was ist harmlos, was eher heikel?)\n"+
+      "• EMPFEHLUNGEN (was sollte man entfernen/privat stellen?)\n\n"+
+      "Nur auf Basis der Schnipsel. Auf Deutsch.\n\n=== FUNDSTÜCKE ===\n"+txt;
+    try{
+      const res=await callAI("text",{system,user,withImage:false});
+      out.textContent=res||"(keine Antwort)"; log("steckbrief erstellt","ok");
+    }catch(e){
+      out.innerHTML='<span style="color:var(--red)">Fehler: '+e.message+'</span>';
+      log("fehler: "+e.message,"rd");
+    }finally{ busy($("#summarize"),false); }
+  });
+
+  // boot log
+  log("self//recon boot ok","ok");
+  log("engine: local · no server · no tracking","mut");
+  logp("awaiting target profile…","cy");
+
+})();
+</script>
+</body>
+</html>
